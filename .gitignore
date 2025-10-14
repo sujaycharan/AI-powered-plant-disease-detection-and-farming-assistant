@@ -1,0 +1,14 @@
+# Ignore virtual environments
+venv/
+.env/
+
+# Ignore large model files
+*.h5
+*.pkl
+*.pt
+*.pth
+
+# Ignore system files
+__pycache__/
+.DS_Store
+*.log
