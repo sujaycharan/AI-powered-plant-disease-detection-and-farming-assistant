@@ -4,8 +4,8 @@ from PIL import Image
 import numpy as np
 import tensorflow as tf
 import streamlit as st
-from gtts import gTTS
-from deep_translator import GoogleTranslator
+from gtts import gTTS #google text to speech
+from deep_translator import GoogleTranslator 
 import time
 import re
 import requests
@@ -15,21 +15,121 @@ from datetime import datetime, timedelta
 from dotenv import load_dotenv
 from geopy.geocoders import Nominatim
 
-# Gemini API imports
+
 from model import get_model
 
-# ================== STREAMLIT CONFIG ==================
 st.set_page_config(page_title="AI Plant & Farming Assistant", layout="wide")
-# ================== LOAD ENVIRONMENT VARIABLES ==================
+
+st.markdown("""
+    <style>
+    /* Make the main title more stylish */
+    h1 {
+        color: #2e7d32;
+        text-align: center;
+        font-weight: 800;
+        font-size: 2.5rem;
+    }
+
+    /* Subheaders */
+    h2, h3 {
+        color: #388e3c;
+        font-weight: 700;
+    }
+
+    /* Style sidebar */
+    [data-testid="stSidebar"] {
+        background-color: #e8f5e9;
+        padding: 20px;
+        border-right: 2px solid #c8e6c9;
+    }
+
+    /* Buttons */
+    div.stButton > button {
+        background-color: #43a047;
+        color: white;
+        border: none;
+        padding: 0.6rem 1rem;
+        border-radius: 8px;
+        font-weight: 600;
+        transition: 0.3s;
+    }
+
+    div.stButton > button:hover {
+        background-color: #2e7d32;
+        transform: scale(1.05);
+    }
+
+    /* Tabs */
+    div[data-baseweb="tab-list"] > button {
+        font-weight: bold !important;
+        color: #1b5e20 !important;
+    }
+
+    /* Image border */
+    img {
+        border-radius: 10px;
+        border: 2px solid #a5d6a7;
+    }
+
+    /* Chat area styling */
+    .stMarkdown p {
+        font-size: 1.05rem;
+        line-height: 1.6;
+    }
+
+    /* Metrics */
+    [data-testid="stMetricValue"] {
+        color: #1b5e20;
+        font-weight: 700;
+    }
+
+    </style>
+""", unsafe_allow_html=True)
+
+st.markdown("""
+    <div style="text-align:center;">
+        <img src="https://cdn-icons-png.flaticon.com/512/619/619032.png" width="90">
+        <h1>🌿 AI Plant & Farming Assistant</h1>
+        <p style="font-size:18px; color:#4e342e;">
+            Smart farming with AI, weather forecasting, and multilingual support
+        </p>
+    </div>
+""", unsafe_allow_html=True)
+
+st.markdown("""
+<style>
+:root {
+  --primary-color: #43a047;
+  --text-color: #1b5e20;
+  --bg-color: #f9f9f9;
+}
+
+[data-theme="dark"] {
+  --primary-color: #81c784;
+  --text-color: #e8f5e9;
+  --bg-color: #1b1b1b;
+}
+
+h1 {
+  color: var(--text-color);
+}
+div.stButton > button {
+  background-color: var(--primary-color);
+  color: white;
+}
+</style>
+""", unsafe_allow_html=True)
+
+
 load_dotenv()
 OPENWEATHER_API_KEY = os.getenv("OPENWEATHER_API_KEY")
 
-# ================== MODEL LOADING ==================
+
 working_dir = os.path.dirname(os.path.abspath(__file__))
 model_path = f"{working_dir}/trained_model/plant_disease_prediction_model.h5"
 model = tf.keras.models.load_model(model_path)
 class_indices = json.load(open(f"{working_dir}/class_indices.json"))
-# ================== LANGUAGE SETTINGS ==================
+
 languages = {
     "English": "en",
     "हिन्दी": "hi",
@@ -43,7 +143,7 @@ languages = {
     "ਪੰਜਾਬੀ": "pa",
     "ଓଡ଼ିଆ": "or"
 }
-# ================== REMEDIES ==================
+
 remedies = {
     "Apple___Apple_scab": "Apply fungicides early in the growing season. Prune infected branches and remove fallen leaves to limit spread.",
     "Apple___Black_rot": "Remove and destroy infected fruit and branches. Use fungicides during growing season and practice crop rotation.",
@@ -54,7 +154,6 @@ remedies = {
     "Tomato___healthy": "No remedy needed."
 }
 
-# ================== HELPER FUNCTIONS ==================
 def load_and_preprocess_image(image_path, target_size=(224, 224)):
     img = Image.open(image_path)
     img = img.resize(target_size)
@@ -94,7 +193,7 @@ def speak_text(text, lang_code):
     except Exception as e:
         st.warning(f"Voice generation failed: {e}")
 
-# ================== WEATHER DASHBOARD FUNCTIONS ==================
+
 def get_weather_forecast(lat, lon):
     if not OPENWEATHER_API_KEY:
         return None, "OpenWeatherMap API key not found in .env file."
@@ -129,7 +228,7 @@ def get_weather_forecast(lat, lon):
     except Exception as e:
         return None, str(e)
 
-# ================== USER LOCATION ==================
+
 def get_location_from_city(city_name):
     geolocator = Nominatim(user_agent="plant_app")
     try:
@@ -138,18 +237,16 @@ def get_location_from_city(city_name):
             return {"lat": location.latitude, "lon": location.longitude, "city": city_name}
     except:
         pass
-    return {"lat": 11.0, "lon": 79.0, "city": city_name}  # default fallback
+    return {"lat": 11.0, "lon": 79.0, "city": city_name}  
 
 if "user_location" not in st.session_state:
     st.session_state["user_location"] = get_location_from_city("Chennai")
 
-# ================== MANUAL CITY INPUT ==================
 st.sidebar.header("📍 Location Settings")
 city_input = st.sidebar.text_input("Enter your city:", value=st.session_state["user_location"]["city"])
 if city_input and city_input != st.session_state["user_location"]["city"]:
     st.session_state["user_location"] = get_location_from_city(city_input)
 
-# ================== LANGUAGE SELECTION ==================
 if "selected_lang" not in st.session_state:
     st.session_state["selected_lang"] = "English"
 
@@ -168,7 +265,7 @@ lang_code = languages[st.session_state["selected_lang"]]
 def t(text):
     return translate_text(text, lang_code)
 
-# ================== AI MODEL SESSION STATES ==================
+
 if "ai_cache" not in st.session_state:
     st.session_state["ai_cache"] = {}
 
@@ -181,15 +278,14 @@ if "chat_model_tab2" not in st.session_state:
 if "chat_history" not in st.session_state:
     st.session_state["chat_history"] = []
 
-# ================== UI TABS ==================
-st.title(t("🌿 AI-Powered Plant Health & Farming Assistant"))
-tab1, tab2, tab3 = st.tabs([t("🌱 Disease Detection"), t("💬 Chatbot Assistant"), t("🌾 Smart Farming Dashboard")])
 
-# ================== TAB 1: Disease Detection ==================
+st.title(t(" Artificial Intelligence Powered Plant Health & Farming Assistant"))
+tab1, tab2, tab3 = st.tabs([t(" Disease Detection"), t("Chatbot Assistant"), t("Smart Farming Dashboard")])
+
 with tab1:
-    st.header(t("📸 Take or Upload a Leaf Image"))
-    option = st.radio(t("Choose input method:"), (t("📷 Use Camera"), t("📁 Upload Image")))
-    if option == t("📷 Use Camera"):
+    st.header(t("Take or Upload a Leaf Image"))
+    option = st.radio(t("Choose input method:"), (t("Use Camera"), t("Upload Image")))
+    if option == t("Use Camera"):
         image_file = st.camera_input(t("Take a picture of the leaf"))
     else:
         image_file = st.file_uploader(t("Upload a leaf image..."), type=["jpg", "jpeg", "png"])
@@ -199,7 +295,7 @@ with tab1:
         with col1:
             st.image(image.resize((200, 200)), caption=t("Captured Image"))
         with col2:
-            if st.button(t("🔍 Detect Disease")):
+            if st.button(t("Detect Disease")):
                 prediction = predict_image_class(model, image_file, class_indices)
                 st.success(f"{t('Prediction')}: {prediction}")
                 remedy_text = remedies.get(prediction, t("No remedy found. Consult an agronomist."))
@@ -209,11 +305,11 @@ with tab1:
                 st.write(f"{t('🌐 Translated')}:")
                 st.write(translated_pred)
                 st.write(translated_remedy)
-                speak_text(translated_remedy, lang_code)
+                speak_text(remedy_text, lang_code)
                 if prediction in st.session_state["ai_cache"]:
                     ai_reply = st.session_state["ai_cache"][prediction]
                 else:
-                    st.info(t("🤖 Fetching AI chatbot advice..."))
+                    st.info(t(" Fetching AI chatbot advice..."))
                     response = st.session_state["chat_model_tab1"].send_message(
                         f"My plant has {prediction}. Suggest remedies in simple terms."
                     )
@@ -221,13 +317,13 @@ with tab1:
                     st.session_state["ai_cache"][prediction] = ai_reply
                     time.sleep(1)
                 translated_ai_reply = translate_text(ai_reply, lang_code)
-                st.write(f"{t('🌐 Translated Advice')}:")
+                st.write(f"{t(' Translated Advice')}:")
                 st.write(translated_ai_reply)
                 speak_text(translated_ai_reply, lang_code)
 
-# ================== TAB 2: Chatbot ==================
+
 with tab2:
-    st.header(t("💬 Plant Care Chatbot Assistant"))
+    st.header(t(" Plant Care Chatbot Assistant"))
     user_input = st.text_input(t("Ask me anything about plants, diseases, or remedies:"))
     if st.button(t("Send")) and user_input:
         st.session_state["chat_history"].append((t("You"), user_input))
@@ -243,34 +339,34 @@ with tab2:
         st.write(f"{t('🌐 Translated')}: {translated_reply}")
         speak_text(translated_reply, lang_code)
         st.session_state["chat_history"].append((t("Bot"), ai_reply))
-    st.subheader(t("🧾 Chat History"))
+    st.subheader(t(" Chat History"))
     for role, text in st.session_state["chat_history"]:
         st.markdown(f"**{role}:** {text}")
 
-# ================== TAB 3: Smart Farming Dashboard ==================
+
 with tab3:
-    st.header(t("🌾 Smart Farming Dashboard"))
+    st.header(t(" Smart Farming Dashboard"))
     st.write(t("Get 6-month weather insights automatically based on your city."))
     lat = st.session_state["user_location"]["lat"]
     lon = st.session_state["user_location"]["lon"]
     city = st.session_state["user_location"]["city"]
-    st.success(t(f"📍 Detected Location: {city}"))
+    st.success(t(f" Detected Location: {city}"))
     if st.button(t("📊 Show Forecast")):
         df, error = get_weather_forecast(lat, lon)
         if error:
             st.error(t(error))
         else:
             st.success(t(f"Weather forecast (Next 6 Months)"))
-            st.metric(t("🌡️ Avg Temperature (°C)"), f"{round(df['temp'].mean(),1)}°C")
-            st.metric(t("💧 Avg Humidity (%)"), f"{round(df['humidity'].mean(),1)}%")
-            st.metric(t("🌧️ Avg Rainfall (mm)"), f"{round(df['rainfall'].mean(),1)} mm")
+            st.metric(t("Average Temperature (°C)"), f"{round(df['temp'].mean(),1)}°C")
+            st.metric(t("Average Humidity (%)"), f"{round(df['humidity'].mean(),1)}%")
+            st.metric(t("Average Rainfall (mm)"), f"{round(df['rainfall'].mean(),1)} mm")
             st.subheader(t("📈 6-Month Climate Prediction Trends"))
             fig, ax = plt.subplots(figsize=(9, 4))
-            ax.plot(df["date"], df["temp"], label=t("Temperature (°C)"), marker='o')
-            ax.plot(df["date"], df["humidity"], label=t("Humidity (%)"), marker='o')
-            ax.plot(df["date"], df["rainfall"], label=t("Rainfall (mm)"), marker='o')
-            ax.set_xlabel(t("Month"))
-            ax.set_ylabel(t("Values"))
+            ax.plot(df["date"], df["temp"], label="Temperature (°C)", marker='o')
+            ax.plot(df["date"], df["humidity"], label="Humidity (%)", marker='o')
+            ax.plot(df["date"], df["rainfall"], label="Rainfall (mm)", marker='o')
+            ax.set_xlabel("Month")
+            ax.set_ylabel("Values")
             ax.legend()
             ax.grid(True)
             plt.xticks(rotation=45)
