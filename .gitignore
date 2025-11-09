@@ -1,19 +1,35 @@
-# Ignore Python environments
+# Python environment
 venv/
 .env/
+__pycache__/
+*.pyc
 
-# Ignore model files
+# Models and weights
 *.h5
 *.hdf5
 *.pkl
 *.pt
 *.ckpt
 
-# Ignore large binaries
-*.dll
-*.pyd
-*.lib
-*.exe
-
-# Jupyter checkpoints
+# Data and cache
+datasets/
+*.csv
+*.zip
+*.tar
+*.gz
+*.npz
+*.npy
+*.pickle
+*.log
+cache/
+__pycache__/
 .ipynb_checkpoints/
+
+# OS / IDE files
+.DS_Store
+*.swp
+.idea/
+.vscode/
+
+# Streamlit and app cache
+.streamlit/
