@@ -1,92 +1,19 @@
-# ===============================
-# 🌿 AI-Powered Plant Disease Detection Project
-# Custom .gitignore for Python, TensorFlow, and Streamlit
-# ===============================
-
-# --- Python compiled files ---
-__pycache__/
-*.pyc
-*.pyo
-*.pyd
-
-# --- Virtual environment ---
+# Ignore Python environments
 venv/
 .env/
-ENV/
-env/
-.venv/
 
-# --- IDE / Editor settings ---
-.vscode/
-.idea/
-*.iml
-
-# --- OS-specific files ---
-.DS_Store
-Thumbs.db
-desktop.ini
-
-# --- Jupyter notebooks checkpoints ---
-.ipynb_checkpoints/
-
-# --- Logs and debug files ---
-*.log
-logs/
-nohup.out
-
-# --- Build and distribution ---
-build/
-dist/
-*.egg-info/
-*.spec
-
-# --- Temporary files ---
-tmp/
-temp/
-*.bak
-*.swp
-
-# --- Machine Learning models ---
-# Exclude trained models and checkpoints (they're too large for GitHub)
+# Ignore model files
 *.h5
 *.hdf5
 *.pkl
 *.pt
-*.pth
 *.ckpt
-*.joblib
 
-# --- TensorBoard & Checkpoints ---
-runs/
-checkpoints/
-saved_models/
+# Ignore large binaries
+*.dll
+*.pyd
+*.lib
+*.exe
 
-# --- Datasets or media ---
-data/
-datasets/
-*.csv
-*.zip
-*.tar
-*.gz
-*.npy
-*.npz
-*.json
-
-# --- Environment variables / Secrets ---
-.env
-config.json
-secrets.json
-apikeys.json
-
-# --- Streamlit cache ---
-.streamlit/
-__cache__/
-
-# --- System or user-specific files ---
-*.bak
-*.tmp
-*.old
-
-# --- Misc ---
-*.sqlite3
-*.db
+# Jupyter checkpoints
+.ipynb_checkpoints/
