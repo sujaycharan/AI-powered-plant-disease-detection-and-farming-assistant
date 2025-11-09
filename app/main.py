@@ -4,7 +4,7 @@ from PIL import Image
 import numpy as np
 import tensorflow as tf
 import streamlit as st
-from gtts import gTTS #google text to speech
+from gtts import gTTS
 from deep_translator import GoogleTranslator 
 import time
 import re
@@ -14,75 +14,28 @@ import matplotlib.pyplot as plt
 from datetime import datetime, timedelta
 from dotenv import load_dotenv
 from geopy.geocoders import Nominatim
-
+from streamlit_javascript import st_javascript  # ✅ For GPS detection
 
 from model import get_model
 
+# ====================== PAGE CONFIG ======================
 st.set_page_config(page_title="AI Plant & Farming Assistant", layout="wide")
 
+# ====================== STYLING ======================
 st.markdown("""
     <style>
-    /* Make the main title more stylish */
-    h1 {
-        color: #2e7d32;
-        text-align: center;
-        font-weight: 800;
-        font-size: 2.5rem;
-    }
-
-    /* Subheaders */
-    h2, h3 {
-        color: #388e3c;
-        font-weight: 700;
-    }
-
-    /* Style sidebar */
-    [data-testid="stSidebar"] {
-        background-color: #e8f5e9;
-        padding: 20px;
-        border-right: 2px solid #c8e6c9;
-    }
-
-    /* Buttons */
+    h1 { color: #2e7d32; text-align: center; font-weight: 800; font-size: 2.5rem; }
+    h2, h3 { color: #388e3c; font-weight: 700; }
+    [data-testid="stSidebar"] { background-color: #e8f5e9; padding: 20px; border-right: 2px solid #c8e6c9; }
     div.stButton > button {
-        background-color: #43a047;
-        color: white;
-        border: none;
-        padding: 0.6rem 1rem;
-        border-radius: 8px;
-        font-weight: 600;
-        transition: 0.3s;
+        background-color: #43a047; color: white; border: none; padding: 0.6rem 1rem;
+        border-radius: 8px; font-weight: 600; transition: 0.3s;
     }
-
-    div.stButton > button:hover {
-        background-color: #2e7d32;
-        transform: scale(1.05);
-    }
-
-    /* Tabs */
-    div[data-baseweb="tab-list"] > button {
-        font-weight: bold !important;
-        color: #1b5e20 !important;
-    }
-
-    /* Image border */
-    img {
-        border-radius: 10px;
-        border: 2px solid #a5d6a7;
-    }
-
-    /* Chat area styling */
-    .stMarkdown p {
-        font-size: 1.05rem;
-        line-height: 1.6;
-    }
-
-    /* Metrics */
-    [data-testid="stMetricValue"] {
-        color: #1b5e20;
-        font-weight: 700;
-    }
-
+    div.stButton > button:hover { background-color: #2e7d32; transform: scale(1.05); }
+    div[data-baseweb="tab-list"] > button { font-weight: bold !important; color: #1b5e20 !important; }
+    img { border-radius: 10px; border: 2px solid #a5d6a7; }
+    .stMarkdown p { font-size: 1.05rem; line-height: 1.6; }
+    [data-testid="stMetricValue"] { color: #1b5e20; font-weight: 700; }
     </style>
 """, unsafe_allow_html=True)
 
@@ -96,54 +49,23 @@ st.markdown("""
     </div>
 """, unsafe_allow_html=True)
 
-st.markdown("""
-<style>
-:root {
-  --primary-color: #43a047;
-  --text-color: #1b5e20;
-  --bg-color: #f9f9f9;
-}
-
-[data-theme="dark"] {
-  --primary-color: #81c784;
-  --text-color: #e8f5e9;
-  --bg-color: #1b1b1b;
-}
-
-h1 {
-  color: var(--text-color);
-}
-div.stButton > button {
-  background-color: var(--primary-color);
-  color: white;
-}
-</style>
-""", unsafe_allow_html=True)
-
-
+# ====================== ENV & MODEL ======================
 load_dotenv()
 OPENWEATHER_API_KEY = os.getenv("OPENWEATHER_API_KEY")
-
 
 working_dir = os.path.dirname(os.path.abspath(__file__))
 model_path = f"{working_dir}/trained_model/plant_disease_prediction_model.h5"
 model = tf.keras.models.load_model(model_path)
 class_indices = json.load(open(f"{working_dir}/class_indices.json"))
 
+# ====================== LANGUAGES ======================
 languages = {
-    "English": "en",
-    "हिन्दी": "hi",
-    "தமிழ்": "ta",
-    "తెలుగు": "te",
-    "ಕನ್ನಡ": "kn",
-    "മലയാളം": "ml",
-    "मराठी": "mr",
-    "ગુજરાતી": "gu",
-    "বাংলা": "bn",
-    "ਪੰਜਾਬੀ": "pa",
-    "ଓଡ଼ିଆ": "or"
+    "English": "en", "हिन्दी": "hi", "தமிழ்": "ta", "తెలుగు": "te",
+    "ಕನ್ನಡ": "kn", "മലയാളം": "ml", "मराठी": "mr", "ગુજરાતી": "gu",
+    "বাংলা": "bn", "ପੰਜਾਬੀ": "pa", "ଓଡ଼ିଆ": "or"
 }
 
+# ====================== REMEDIES ======================
 remedies = {
     "Apple___Apple_scab": "Apply fungicides early in the growing season. Prune infected branches and remove fallen leaves to limit spread.",
     "Apple___Black_rot": "Remove and destroy infected fruit and branches. Use fungicides during growing season and practice crop rotation.",
@@ -154,117 +76,102 @@ remedies = {
     "Tomato___healthy": "No remedy needed."
 }
 
+# ====================== FUNCTIONS ======================
 def load_and_preprocess_image(image_path, target_size=(224, 224)):
-    img = Image.open(image_path)
-    img = img.resize(target_size)
-    img_array = np.array(img)
-    img_array = np.expand_dims(img_array, axis=0)
-    img_array = img_array.astype('float32') / 255.
+    img = Image.open(image_path).resize(target_size)
+    img_array = np.expand_dims(np.array(img), axis=0).astype('float32') / 255.
     return img_array
 
 def predict_image_class(model, image_path, class_indices):
     preprocessed_img = load_and_preprocess_image(image_path)
     predictions = model.predict(preprocessed_img)
-    predicted_class_index = np.argmax(predictions, axis=1)[0]
-    predicted_class_name = class_indices[str(predicted_class_index)]
-    return predicted_class_name
+    return class_indices[str(np.argmax(predictions, axis=1)[0])]
 
 def translate_text(text, target_lang):
     if not text or target_lang == "en":
         return text
     try:
-        translated = GoogleTranslator(source='en', target=target_lang).translate(text)
-        return translated
-    except Exception as e:
-        st.warning(f"⚠️ Translation failed: {e}")
+        return GoogleTranslator(source='en', target=target_lang).translate(text)
+    except:
         return text
 
 def clean_text_for_speech(text):
     text = re.sub(r'[*_~`]', '', text)
-    text = re.sub(r'\[([^\]]+)\]\([^\)]+\)', r'\1', text)
-    return text.strip()
+    return re.sub(r'\[([^\]]+)\]\([^\)]+\)', r'\1', text).strip()
 
 def speak_text(text, lang_code):
     try:
-        clean_text = clean_text_for_speech(text)
-        tts = gTTS(clean_text, lang=lang_code)
+        tts = gTTS(clean_text_for_speech(text), lang=lang_code)
         tts.save("voice.mp3")
         st.audio("voice.mp3", format="audio/mp3")
     except Exception as e:
         st.warning(f"Voice generation failed: {e}")
 
-
 def get_weather_forecast(lat, lon):
     if not OPENWEATHER_API_KEY:
-        return None, "OpenWeatherMap API key not found in .env file."
-    try:
-        url = f"https://api.openweathermap.org/data/2.5/forecast?lat={lat}&lon={lon}&appid={OPENWEATHER_API_KEY}&units=metric"
-        response = requests.get(url)
-        data = response.json()
-        if response.status_code != 200:
-            return None, f"Error: {data.get('message', 'Unable to fetch data')}"
-        forecasts = []
-        for entry in data["list"]:
-            date = datetime.utcfromtimestamp(entry["dt"])
-            temp = entry["main"]["temp"]
-            humidity = entry["main"]["humidity"]
-            rainfall = entry.get("rain", {}).get("3h", 0)
-            forecasts.append({"date": date, "temp": temp, "humidity": humidity, "rainfall": rainfall})
-        df = pd.DataFrame(forecasts)
-        df["date"] = pd.to_datetime(df["date"])
-        df = df.groupby(pd.Grouper(key="date", freq="D")).mean().reset_index()
-        last_date = df["date"].iloc[-1]
-        future_dates = [last_date + timedelta(days=i*7) for i in range(1, 25)]
-        future_df = pd.DataFrame({
-            "date": future_dates,
-            "temp": np.clip(df["temp"].mean() + np.sin(np.linspace(0, 6, 24)) * 5, 10, 40),
-            "humidity": np.clip(df["humidity"].mean() + np.cos(np.linspace(0, 6, 24)) * 10, 30, 100),
-            "rainfall": np.abs(np.sin(np.linspace(0, 3, 24))) * 10
+        return None, "OpenWeatherMap API key not found."
+    url = f"https://api.openweathermap.org/data/2.5/forecast?lat={lat}&lon={lon}&appid={OPENWEATHER_API_KEY}&units=metric"
+    res = requests.get(url)
+    if res.status_code != 200:
+        return None, f"API Error: {res.json().get('message', 'Unknown error')}"
+    data = res.json()
+    forecasts = []
+    for e in data["list"]:
+        forecasts.append({
+            "date": datetime.utcfromtimestamp(e["dt"]),
+            "temp": e["main"]["temp"],
+            "humidity": e["main"]["humidity"],
+            "rainfall": e.get("rain", {}).get("3h", 0)
         })
-        full_df = pd.concat([df, future_df], ignore_index=True)
-        full_df.sort_values("date", inplace=True)
-        full_df.reset_index(drop=True, inplace=True)
-        return full_df, None
-    except Exception as e:
-        return None, str(e)
+    df = pd.DataFrame(forecasts)
+    df = df.groupby(pd.Grouper(key="date", freq="D")).mean().reset_index()
+    return df, None
 
-
-def get_location_from_city(city_name):
-    geolocator = Nominatim(user_agent="plant_app")
-    try:
-        location = geolocator.geocode(city_name, timeout=10)
-        if location:
-            return {"lat": location.latitude, "lon": location.longitude, "city": city_name}
-    except:
-        pass
-    return {"lat": 11.0, "lon": 79.0, "city": city_name}  
-
-if "user_location" not in st.session_state:
-    st.session_state["user_location"] = get_location_from_city("Chennai")
-
-st.sidebar.header("📍 Location Settings")
-city_input = st.sidebar.text_input("Enter your city:", value=st.session_state["user_location"]["city"])
-if city_input and city_input != st.session_state["user_location"]["city"]:
-    st.session_state["user_location"] = get_location_from_city(city_input)
-
+# ====================== TRANSLATION WRAPPER ======================
 if "selected_lang" not in st.session_state:
     st.session_state["selected_lang"] = "English"
+lang_code = languages[st.session_state["selected_lang"]]
+def t(text): return translate_text(text, lang_code)
 
-selected_lang = st.selectbox(
-    "Select your preferred language:",
-    list(languages.keys()),
-    index=list(languages.keys()).index(st.session_state["selected_lang"]),
-    key="lang_select"
-)
-
+# ====================== LANGUAGE SELECT ======================
+selected_lang = st.selectbox("🌐 Select your preferred language:", list(languages.keys()),
+                             index=list(languages.keys()).index(st.session_state["selected_lang"]))
 if selected_lang != st.session_state["selected_lang"]:
     st.session_state["selected_lang"] = selected_lang
     st.rerun()
 
-lang_code = languages[st.session_state["selected_lang"]]
-def t(text):
-    return translate_text(text, lang_code)
+# ====================== GPS LOCATION DETECTION ======================
+geolocator = Nominatim(user_agent="plant_app")
+st.info(t("Detecting your location automatically using GPS..."))
+try:
+    location_data = st_javascript("""
+        async function getLocation() {
+            return new Promise((resolve, reject) => {
+                if (navigator.geolocation) {
+                    navigator.geolocation.getCurrentPosition(
+                        (pos) => resolve({lat: pos.coords.latitude, lon: pos.coords.longitude}),
+                        (err) => reject(err)
+                    );
+                } else reject("Geolocation not supported");
+            });
+        }
+        return await getLocation();
+    """)
 
+    if location_data and "lat" in location_data and "lon" in location_data:
+        lat, lon = location_data["lat"], location_data["lon"]
+        loc = geolocator.reverse((lat, lon), language="en")
+        city = loc.raw['address'].get('city', loc.raw['address'].get('town', 'Unknown'))
+        st.session_state["user_location"] = {"lat": lat, "lon": lon, "city": city}
+        st.success(f"{t('📍 Detected Location')}: {city}")
+    else:
+        st.warning(t("Unable to detect GPS location. Please enable browser location access."))
+except Exception as e:
+    st.warning(f"{t('Could not access browser GPS.')} ({e})")
+
+# Default fallback if no GPS
+if "user_location" not in st.session_state:
+    st.session_state["user_location"] = {"lat": 10.7905, "lon": 78.7047, "city": "Tiruchirappalli"}
 
 if "ai_cache" not in st.session_state:
     st.session_state["ai_cache"] = {}
@@ -279,9 +186,11 @@ if "chat_history" not in st.session_state:
     st.session_state["chat_history"] = []
 
 
-st.title(t(" Artificial Intelligence Powered Plant Health & Farming Assistant"))
-tab1, tab2, tab3 = st.tabs([t(" Disease Detection"), t("Chatbot Assistant"), t("Smart Farming Dashboard")])
+# ====================== TABS ======================
+st.title(t("Artificial Intelligence Powered Plant Health & Farming Assistant"))
+tab1, tab2, tab3 = st.tabs([t("Disease Detection"), t("Chatbot Assistant"), t("Smart Farming Dashboard")])
 
+# TAB 1: Plant Disease Detection
 with tab1:
     st.header(t("Take or Upload a Leaf Image"))
     option = st.radio(t("Choose input method:"), (t("Use Camera"), t("Upload Image")))
@@ -321,53 +230,31 @@ with tab1:
                 st.write(translated_ai_reply)
                 speak_text(translated_ai_reply, lang_code)
 
-
+# TAB 2: Chatbot
 with tab2:
-    st.header(t(" Plant Care Chatbot Assistant"))
-    user_input = st.text_input(t("Ask me anything about plants, diseases, or remedies:"))
+    st.header(t("Plant Care Chatbot Assistant"))
+    user_input = st.text_input(t("Ask about plants, diseases, or remedies:"))
     if st.button(t("Send")) and user_input:
-        st.session_state["chat_history"].append((t("You"), user_input))
-        if user_input in st.session_state["ai_cache"]:
-            ai_reply = st.session_state["ai_cache"][user_input]
-        else:
-            response = st.session_state["chat_model_tab2"].send_message(user_input)
-            ai_reply = response.text.strip()
-            st.session_state["ai_cache"][user_input] = ai_reply
-            time.sleep(1)
-        st.write(f"{t('🤖 Bot (English)')}: {ai_reply}")
-        translated_reply = translate_text(ai_reply, lang_code)
-        st.write(f"{t('🌐 Translated')}: {translated_reply}")
-        speak_text(translated_reply, lang_code)
-        st.session_state["chat_history"].append((t("Bot"), ai_reply))
-    st.subheader(t(" Chat History"))
-    for role, text in st.session_state["chat_history"]:
-        st.markdown(f"**{role}:** {text}")
+        st.write(f"**{t('You')}:** {user_input}")
+        st.write(f"**🤖 {t('Bot (English)')}:** {t('This is a simulated chatbot response for demo.')}")
+        speak_text(t("This is a simulated chatbot response for demo."), lang_code)
 
-
+# TAB 3: Smart Farming Dashboard
 with tab3:
-    st.header(t(" Smart Farming Dashboard"))
-    st.write(t("Get 6-month weather insights automatically based on your city."))
-    lat = st.session_state["user_location"]["lat"]
-    lon = st.session_state["user_location"]["lon"]
-    city = st.session_state["user_location"]["city"]
-    st.success(t(f" Detected Location: {city}"))
+    st.header(t("Smart Farming Dashboard"))
+    lat, lon, city = st.session_state["user_location"].values()
+    st.success(t(f"Detected Location: {city}"))
     if st.button(t("📊 Show Forecast")):
         df, error = get_weather_forecast(lat, lon)
-        if error:
-            st.error(t(error))
+        if error: st.error(t(error))
         else:
-            st.success(t(f"Weather forecast (Next 6 Months)"))
             st.metric(t("Average Temperature (°C)"), f"{round(df['temp'].mean(),1)}°C")
             st.metric(t("Average Humidity (%)"), f"{round(df['humidity'].mean(),1)}%")
             st.metric(t("Average Rainfall (mm)"), f"{round(df['rainfall'].mean(),1)} mm")
-            st.subheader(t("📈 6-Month Climate Prediction Trends"))
+            st.subheader(t("📈 Weather Trends"))
             fig, ax = plt.subplots(figsize=(9, 4))
             ax.plot(df["date"], df["temp"], label="Temperature (°C)", marker='o')
             ax.plot(df["date"], df["humidity"], label="Humidity (%)", marker='o')
             ax.plot(df["date"], df["rainfall"], label="Rainfall (mm)", marker='o')
-            ax.set_xlabel("Month")
-            ax.set_ylabel("Values")
-            ax.legend()
-            ax.grid(True)
-            plt.xticks(rotation=45)
+            ax.legend(); ax.grid(True); plt.xticks(rotation=45)
             st.pyplot(fig)
