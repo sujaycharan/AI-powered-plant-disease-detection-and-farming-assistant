@@ -167,9 +167,3 @@ If GPS detection fails, you can manually enter your **city name**, and the dashb
 
 ---
 
-## 📸 App Preview
-*(You can add screenshots of your Streamlit app tabs here — Disease Detection, Chatbot, and Dashboard)*
-
----
-
-> 🌱 “Empowering farmers with AI — one leaf at a time.”
